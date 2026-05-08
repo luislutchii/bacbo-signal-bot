@@ -1,0 +1,19 @@
+{
+  "name": "bacbo-signal-bot",
+  "version": "1.0.0",
+  "description": "Bot de sinais Bac Bo para WhatsApp via Baileys",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["whatsapp", "bot", "bacbo", "sinais", "baileys"],
+  "author": "Luís Lutchi",
+  "license": "MIT",
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.16",
+    "axios": "^1.6.0",
+    "pino": "^8.14.1",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
