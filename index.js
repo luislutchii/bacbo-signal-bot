@@ -60,6 +60,19 @@ function getMensagem(channelId, campo, vars = {}) {
   return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : `{${k}}`);
 }
 
+function getVars(channelId, extra) {
+  const e = getEstado(channelId);
+  return Object.assign({
+    cor: "",
+    n: e.greenSeguidos,
+    data: new Date().toLocaleDateString("pt-AO"),
+    vitorias: e.stats.vitorias,
+    empates: e.stats.empates,
+    loss: e.stats.loss,
+    rodadas: e.stats.vitorias + e.stats.loss,
+  }, extra || {});
+}
+
 function formatPlacar(channelId, stats) {
   const hoje = new Date().toLocaleDateString("pt-AO");
   return getMensagem(channelId, "placar", {
