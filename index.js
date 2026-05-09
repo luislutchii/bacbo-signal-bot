@@ -40,6 +40,7 @@ const DEFAULT_MSGS = {
   desativado:     "⛔ *Sinais Bac Bo desativados!*",
   greenSeguidos:  "🔥 *{n} GREENS SEGUIDOS!* 🔥\n\nSequência incrível! Continua!",
   placar:         "🏆 *PLACAR DO DIA*\n📅 {data}\n━━━━━━━━━━━━━━━━\n✅ *Vitórias:* {vitorias}\n🤝 *Empates:* {empates}\n❌ *Loss:* {loss}\n━━━━━━━━━━━━━━━━\n📊 *Rodadas:* {rodadas}",
+  anuncio:        "📢 *ANÚNCIO*\n\nTexto do anúncio aqui.",
 };
 
 const CAMPOS_DESC = {
@@ -52,6 +53,7 @@ const CAMPOS_DESC = {
   desativado:    "Mensagem ao desativar",
   greenSeguidos: "Greens seguidos (use {n})",
   placar:        "Placar do dia (use {data}, {vitorias}, {empates}, {loss}, {rodadas})",
+  anuncio:       "Anúncio após loss (use qualquer variável)",
 };
 
 function getMensagem(channelId, campo, vars = {}) {
@@ -112,6 +114,7 @@ function getEstado(channelId) {
       currentDate: new Date().toDateString(),
       analiseMsgId: null,
       galeMsgId: null,
+      anuncioAtivo: false,
     };
   }
   return estado[channelId];
@@ -304,6 +307,9 @@ function menuPrincipal() {
     "› .bacbo placar — ver placar\n" +
     "› .bacbo reset — resetar placar\n" +
     "› .bacbo status — ver status\n\n" +
+    "📢 *Anúncio*\n" +
+    "› .anuncio on/off — ativar/desativar\n" +
+    "› .set anuncio <texto> — personalizar\n\n" +
     "🎨 *Personalização* _(por canal)_\n" +
     "› .set <campo> <texto>\n" +
     "› .ver — ver mensagens deste canal\n" +
@@ -427,6 +433,26 @@ async function handleMessage(sock, m) {
     }
 
     return reply("❌ Use: .bacbo on/off/placar/reset/status");
+  }
+
+  if (command === "anuncio") {
+    const option = args[0]?.toLowerCase();
+    if (option === "on") {
+      e.anuncioAtivo = true;
+      return reply("✅ *Anúncio após loss ativado!*\nUse *.set anuncio <texto>* para personalizar.");
+    }
+    if (option === "off") {
+      e.anuncioAtivo = false;
+      return reply("⛔ *Anúncio após loss desativado!*");
+    }
+    return reply(
+      "📢 *ANÚNCIO APÓS LOSS*\n\n" +
+      "Status: " + (e.anuncioAtivo ? "✅ Ativo" : "❌ Inativo") + "\n\n" +
+      "Comandos:\n" +
+      "› .anuncio on — ativar\n" +
+      "› .anuncio off — desativar\n" +
+      "› .set anuncio <texto> — personalizar mensagem"
+    );
   }
 
   if (command === "set") {
