@@ -220,6 +220,9 @@ async function resolveResult(sock, channelId, emoji) {
 
   await sock.sendMessage(channelId, { text: getMensagem(channelId, "naoPegou", { cor: target, n: e.greenSeguidos, data: new Date().toLocaleDateString("pt-AO"), vitorias: e.stats.vitorias, empates: e.stats.empates, loss: e.stats.loss, rodadas: e.stats.vitorias + e.stats.loss }) });
   await sock.sendMessage(channelId, { text: formatPlacar(channelId, e.stats) });
+  if (e.anuncioAtivo) {
+    await sock.sendMessage(channelId, { text: getMensagem(channelId, "anuncio", getVars(channelId, { cor: target })) });
+  }
 }
 
 async function checkPatterns(sock, channelId) {
