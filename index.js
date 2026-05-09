@@ -49,8 +49,8 @@ const DEFAULT_MSGS = {
 const CAMPOS_DESC = {
   sinal:         "Sinal de entrada (use {cor})",
   gale:          "Mensagem de gale (use {cor})",
-  bateu:         "Confirmação de vitória",
-  naoPegou:      "Mensagem de loss",
+  bateu:         "Confirmação de vitória (use {cor}, {vitorias}...)",
+  naoPegou:      "Mensagem de loss (use {cor}, {loss}...)",
   analisando:    "Mensagem de análise",
   ativado:       "Mensagem ao ativar",
   desativado:    "Mensagem ao desativar",
@@ -62,7 +62,7 @@ const CAMPOS_DESC = {
 function getMensagem(channelId, campo, vars = {}) {
   const db = loadDB();
   const template = (db.mensagens[channelId]?.[campo]) || DEFAULT_MSGS[campo] || "";
-  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : `{${k}}`);
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? String(vars[k]) : "");
 }
 
 function getVars(channelId, extra) {
@@ -191,7 +191,9 @@ async function resolveResult(sock, channelId, emoji) {
     e.martingaleCount = 0;
     e.greenSeguidos++;
 
-    await sock.sendMessage(channelId, { text: getMensagem(channelId, "bateu", { cor: target, n: e.greenSeguidos, data: new Date().toLocaleDateString("pt-AO"), vitorias: e.stats.vitorias, empates: e.stats.empates, loss: e.stats.loss, rodadas: e.stats.vitorias + e.stats.loss }) });
+    await sock.sendMessage(channelId, {
+      text: getMensagem(channelId, "bateu", getVars(channelId, { cor: target }))
+    });
     await sock.sendMessage(channelId, { text: formatPlacar(channelId, e.stats) });
 
     if (e.greenSeguidos >= 5) {
@@ -218,10 +220,14 @@ async function resolveResult(sock, channelId, emoji) {
   e.martingaleCount = 0;
   e.greenSeguidos = 0;
 
-  await sock.sendMessage(channelId, { text: getMensagem(channelId, "naoPegou", { cor: target, n: e.greenSeguidos, data: new Date().toLocaleDateString("pt-AO"), vitorias: e.stats.vitorias, empates: e.stats.empates, loss: e.stats.loss, rodadas: e.stats.vitorias + e.stats.loss }) });
+  await sock.sendMessage(channelId, {
+    text: getMensagem(channelId, "naoPegou", getVars(channelId, { cor: target }))
+  });
   await sock.sendMessage(channelId, { text: formatPlacar(channelId, e.stats) });
   if (e.anuncioAtivo) {
-    await sock.sendMessage(channelId, { text: getMensagem(channelId, "anuncio", getVars(channelId, { cor: target })) });
+    await sock.sendMessage(channelId, {
+      text: getMensagem(channelId, "anuncio", getVars(channelId, { cor: target }))
+    });
   }
 }
 
@@ -233,7 +239,7 @@ async function checkPatterns(sock, channelId) {
   if (!sinal) {
     await deletarMsg(sock, channelId, e.analiseMsgId);
     const sent = await sock.sendMessage(channelId, {
-      text: getMensagem(channelId, "analisando", { cor: "", n: e.greenSeguidos, data: new Date().toLocaleDateString("pt-AO"), vitorias: e.stats.vitorias, empates: e.stats.empates, loss: e.stats.loss, rodadas: e.stats.vitorias + e.stats.loss })
+      text: getMensagem(channelId, "analisando", getVars(channelId))
     });
     e.analiseMsgId = sent?.key?.id || null;
     return;
@@ -308,22 +314,24 @@ function menuPrincipal() {
     "🤖 *BAC BO BOT — MENU*\n\n" +
     "━━━━━━━━━━━━━━━━\n" +
     "🎲 *Sinais*\n" +
-    "› .bacbo on — ativar neste canal\n" +
-    "› .bacbo off — desativar neste canal\n" +
+    "› .bacbo on — ativar neste grupo\n" +
+    "› .bacbo off — desativar neste grupo\n" +
     "› .bacbo placar — ver placar\n" +
     "› .bacbo reset — resetar placar\n" +
     "› .bacbo status — ver status\n\n" +
     "📢 *Anúncio*\n" +
     "› .anuncio on/off — ativar/desativar\n" +
     "› .set anuncio <texto> — personalizar\n\n" +
-    "🎨 *Personalização* _(por canal)_\n" +
+    "🎨 *Personalização* _(por grupo)_\n" +
     "› .set <campo> <texto>\n" +
-    "› .ver — ver mensagens deste canal\n" +
+    "› .ver — ver mensagens deste grupo\n" +
     "› .resetmsg — restaurar mensagens padrão\n\n" +
     "👥 *Controladores* _(só dono)_\n" +
-    "› .addctrl <número>\n" +
-    "› .rmctrl <número>\n" +
+    "› .addctrl <lid>\n" +
+    "› .rmctrl <lid>\n" +
     "› .ctrllist — listar controladores\n\n" +
+    "🆔 *Outros*\n" +
+    "› .lid — ver o teu ID\n\n" +
     "━━━━━━━━━━━━━━━━\n" +
     "_.menu — ver este menu_"
   );
@@ -335,21 +343,21 @@ function menuPersonalizar() {
   for (const [campo, desc] of Object.entries(CAMPOS_DESC)) {
     texto += `› *${campo}* — ${desc}\n`;
   }
-  texto += "\n*Variáveis disponíveis:*\n";
-  texto += "› *{cor}* — cor do sinal\n";
+  texto += "\n*Variáveis disponíveis em qualquer campo:*\n";
+  texto += "› *{cor}* — cor do sinal/resultado\n";
   texto += "› *{n}* — número de greens seguidos\n";
   texto += "› *{data}* — data atual\n";
   texto += "› *{vitorias}*, *{empates}*, *{loss}*, *{rodadas}*\n\n";
   texto += "*Exemplos:*\n";
-  texto += "_.set bateu 🔥 GREEN! Batemos!_\n";
+  texto += "_.set bateu ✅ GREEN {cor}! Vitórias: {vitorias}_\n";
   texto += "_.set sinal 🎯 Entrar em {cor} agora!_\n";
-  texto += "_.set greenSeguidos 🔥 {n} greens seguidos!_";
+  texto += "_.set greenSeguidos 🔥 {n} greens! Bora lucrar!_";
   return texto;
 }
 
 function verMensagens(channelId) {
   const db = loadDB();
-  let texto = "📋 *MENSAGENS DESTE CANAL*\n\n━━━━━━━━━━━━━━━━\n";
+  let texto = "📋 *MENSAGENS DESTE GRUPO*\n\n━━━━━━━━━━━━━━━━\n";
   for (const [campo, desc] of Object.entries(CAMPOS_DESC)) {
     const personalizada = db.mensagens[channelId]?.[campo];
     const valor = personalizada || DEFAULT_MSGS[campo];
@@ -383,6 +391,13 @@ async function handleMessage(sock, m) {
   const command = args[0]?.toLowerCase();
   args.shift();
 
+  // .lid disponível para todos
+  if (command === "lid") {
+    return sock.sendMessage(from, {
+      text: "🆔 *O teu ID:* " + senderNum + "\n\nEnvia este ID ao dono para seres adicionado como controlador:\n*.addctrl " + senderNum + "*"
+    }, { quoted: m });
+  }
+
   if (!isAuthorized(senderNum)) return;
 
   const reply = (text) => sock.sendMessage(from, { text }, { quoted: m });
@@ -400,19 +415,18 @@ async function handleMessage(sock, m) {
         .join("\n› ") || "Nenhum";
       return reply(
         "🎲 *BAC BO — STATUS*\n\n" +
-        "Este canal: " + (e.ativo ? "✅ Ativo" : "❌ Inativo") + "\n\n" +
-        "Canais ativos:\n› " + canaisAtivos + "\n\n" +
+        "Este grupo: " + (e.ativo ? "✅ Ativo" : "❌ Inativo") + "\n\n" +
+        "Grupos ativos:\n› " + canaisAtivos + "\n\n" +
         formatPlacar(from, e.stats)
       );
     }
 
     if (option === "on") {
-      if (e.ativo) return reply("⚠️ Sinais já estão ativos neste canal!");
-      // Controlador só pode ter um canal ativo
+      if (e.ativo) return reply("⚠️ Sinais já estão ativos neste grupo!");
       if (!isOwner(senderNum)) {
         const canalAtivo = ctrlCanal[senderNum];
         if (canalAtivo && canalAtivo !== from && estado[canalAtivo]?.ativo) {
-          return reply("⚠️ Já tens sinais ativos noutro canal!\nDesativa primeiro com *.bacbo off* nesse canal.");
+          return reply("⚠️ Já tens sinais ativos noutro grupo!\nDesativa primeiro com *.bacbo off* nesse grupo.");
         }
         ctrlCanal[senderNum] = from;
       }
@@ -421,9 +435,8 @@ async function handleMessage(sock, m) {
     }
 
     if (option === "off") {
-      if (!e.ativo) return reply("⚠️ Sinais já estão inativos neste canal!");
+      if (!e.ativo) return reply("⚠️ Sinais já estão inativos neste grupo!");
       await desativarCanal(sock, from);
-      // Limpar canal do controlador
       for (const [num, canal] of Object.entries(ctrlCanal)) {
         if (canal === from) delete ctrlCanal[num];
       }
@@ -469,7 +482,7 @@ async function handleMessage(sock, m) {
     if (!CAMPOS_DESC[campo])
       return reply("❌ Campo inválido!\n\nUse *.set* para ver os campos disponíveis.");
     if (!texto)
-      return reply("❌ Informe o texto!\nEx: .set bateu 🔥 GREEN!");
+      return reply("❌ Informe o texto!\nEx: .set bateu ✅ GREEN {cor}!");
 
     const db = loadDB();
     if (!db.mensagens[from]) db.mensagens[from] = {};
@@ -494,29 +507,29 @@ async function handleMessage(sock, m) {
     const db = loadDB();
     delete db.mensagens[from];
     saveDB(db);
-    return reply("🔄 *Mensagens restauradas para o padrão neste canal!*");
+    return reply("🔄 *Mensagens restauradas para o padrão!*");
   }
 
   if (command === "addctrl") {
     if (!isOwner(senderNum)) return reply("🔒 Apenas o *dono* pode adicionar controladores!");
-    const num = args[0]?.replace(/\D/g, "");
-    if (!num) return reply("❌ Informe o número!\nEx: .addctrl 244924319522");
+    const lid = args[0];
+    if (!lid) return reply("❌ Informe o LID!\nPede ao utilizador para digitar *.lid* no grupo e envia o ID aqui.\nEx: .addctrl 161899094274260");
     const db = loadDB();
-    if (db.controllers.includes(num)) return reply("⚠️ Este número já é controlador!");
-    db.controllers.push(num);
+    if (db.controllers.includes(lid)) return reply("⚠️ Este ID já é controlador!");
+    db.controllers.push(lid);
     saveDB(db);
-    return reply("✅ *Controlador adicionado:* " + num);
+    return reply("✅ *Controlador adicionado:* " + lid);
   }
 
   if (command === "rmctrl") {
     if (!isOwner(senderNum)) return reply("🔒 Apenas o *dono* pode remover controladores!");
-    const num = args[0]?.replace(/\D/g, "");
-    if (!num) return reply("❌ Informe o número!\nEx: .rmctrl 244924319522");
+    const lid = args[0];
+    if (!lid) return reply("❌ Informe o LID!\nEx: .rmctrl 161899094274260");
     const db = loadDB();
-    if (!db.controllers.includes(num)) return reply("⚠️ Este número não é controlador!");
-    db.controllers = db.controllers.filter(c => c !== num);
+    if (!db.controllers.includes(lid)) return reply("⚠️ Este ID não é controlador!");
+    db.controllers = db.controllers.filter(c => c !== lid);
     saveDB(db);
-    return reply("✅ *Controlador removido:* " + num);
+    return reply("✅ *Controlador removido:* " + lid);
   }
 
   if (command === "ctrllist") {
@@ -557,10 +570,12 @@ async function startBot() {
       } else if (reason === DisconnectReason.restartRequired) {
         console.log("🔄 Reiniciando...");
         setTimeout(startBot, 2000);
-      } else if (reason === DisconnectReason.connectionClosed ||
-                 reason === DisconnectReason.connectionLost ||
-                 reason === DisconnectReason.timedOut ||
-                 reason === 1006 || reason === undefined) {
+      } else if (
+        reason === DisconnectReason.connectionClosed ||
+        reason === DisconnectReason.connectionLost ||
+        reason === DisconnectReason.timedOut ||
+        reason === 1006 || reason === undefined
+      ) {
         console.log("🔄 Reconectando em 5s...");
         setTimeout(startBot, 5000);
       } else {
@@ -569,7 +584,15 @@ async function startBot() {
       }
     } else if (connection === "open") {
       console.log("✅ Bac Bo Bot conectado!");
-      console.log("📌 Digite .menu num canal para começar");
+      console.log("📌 Digite .menu num grupo para começar");
+      globalSock = sock;
+      for (const [channelId, e] of Object.entries(estado)) {
+        if (e.ativo) {
+          if (e.interval) clearInterval(e.interval);
+          e.interval = setInterval(() => tick(sock, channelId), 2000);
+          console.log("🔄 Sinal reconectado:", channelId);
+        }
+      }
     }
   });
 
