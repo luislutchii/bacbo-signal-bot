@@ -16,6 +16,9 @@ const PREFIX = ".";
 const API_URL = "https://api.signals-house.com/validate/results?tableId=1";
 const DB_PATH = path.join(__dirname, "data/db.json");
 
+let globalSock = null;
+const ctrlCanal = {};
+
 function loadDB() {
   try {
     if (!fs.existsSync(DB_PATH)) {
