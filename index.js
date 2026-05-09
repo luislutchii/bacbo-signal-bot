@@ -396,6 +396,14 @@ async function handleMessage(sock, m) {
 
     if (option === "on") {
       if (e.ativo) return reply("⚠️ Sinais já estão ativos neste canal!");
+      // Controlador só pode ter um canal ativo
+      if (!isOwner(senderNum)) {
+        const canalAtivo = ctrlCanal[senderNum];
+        if (canalAtivo && canalAtivo !== from && estado[canalAtivo]?.ativo) {
+          return reply("⚠️ Já tens sinais ativos noutro canal!\nDesativa primeiro com *.bacbo off* nesse canal.");
+        }
+        ctrlCanal[senderNum] = from;
+      }
       ativarCanal(sock, from);
       return reply(getMensagem(from, "ativado", getVars(from)));
     }
@@ -403,6 +411,10 @@ async function handleMessage(sock, m) {
     if (option === "off") {
       if (!e.ativo) return reply("⚠️ Sinais já estão inativos neste canal!");
       await desativarCanal(sock, from);
+      // Limpar canal do controlador
+      for (const [num, canal] of Object.entries(ctrlCanal)) {
+        if (canal === from) delete ctrlCanal[num];
+      }
       return reply(getMensagem(from, "desativado", getVars(from)));
     }
 
@@ -419,7 +431,7 @@ async function handleMessage(sock, m) {
 
   if (command === "set") {
     if (!args.length) return reply(menuPersonalizar());
-    const campo = args[0]?.toLowerCase();
+    const campo = args[0];
     const texto = args.slice(1).join(" ");
 
     if (!CAMPOS_DESC[campo])
@@ -505,12 +517,23 @@ async function startBot() {
       qrcode.generate(qr, { small: true });
     }
     if (connection === "close") {
-      const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
-      if (code !== DisconnectReason.loggedOut) {
-        setTimeout(startBot, 5000);
-      } else {
+      const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+      console.log("🔌 Conexão fechada. Código:", reason);
+      if (reason === DisconnectReason.loggedOut) {
         console.log("🚪 Sessão encerrada. Delete data/session e reinicie.");
         process.exit(0);
+      } else if (reason === DisconnectReason.restartRequired) {
+        console.log("🔄 Reiniciando...");
+        setTimeout(startBot, 2000);
+      } else if (reason === DisconnectReason.connectionClosed ||
+                 reason === DisconnectReason.connectionLost ||
+                 reason === DisconnectReason.timedOut ||
+                 reason === 1006 || reason === undefined) {
+        console.log("🔄 Reconectando em 5s...");
+        setTimeout(startBot, 5000);
+      } else {
+        console.log("🔄 Reconectando em 10s... Código:", reason);
+        setTimeout(startBot, 10000);
       }
     } else if (connection === "open") {
       console.log("✅ Bac Bo Bot conectado!");
