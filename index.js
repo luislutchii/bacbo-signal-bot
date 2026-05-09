@@ -196,7 +196,7 @@ async function resolveResult(sock, channelId, emoji) {
 
     if (e.greenSeguidos >= 5) {
       await sock.sendMessage(channelId, {
-        text: getMensagem(channelId, "greenSeguidos", getVars(channelId))
+        text: getMensagem(channelId, "greenSeguidos", getVars(channelId, { n: e.greenSeguidos }))
       });
     }
     return;
