@@ -13,7 +13,7 @@ const fs       = require("fs");
 
 const OWNER  = "161899094274260";
 const PREFIX = ".";
-const API_URL = "https://api.signals-house.com/validate/results?tableId=1";
+const API_URL = "https://api.signals-house.com/validate/results?tableId=2";
 const DB_PATH = path.join(__dirname, "data/db.json");
 
 let globalSock = null;
