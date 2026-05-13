@@ -16,6 +16,23 @@ const PREFIX = ".";
 const API_URL = "https://api.signals-house.com/validate/results?tableId=2";
 const DB_PATH = path.join(__dirname, "data/db.json");
 
+const API_BASE = "https://api.signals-house.com/validate/results";
+const MESAS = {
+  "1": "Bac Bo Live",
+  "2": "Bac Bo Ao Vivo",
+};
+const mesaGrupo = {};
+
+function getMesaUrl(channelId) {
+  const mesa = mesaGrupo[channelId] || "2";
+  return API_BASE + "?tableId=" + mesa;
+}
+
+function getMesaNome(channelId) {
+  const mesa = mesaGrupo[channelId] || "2";
+  return "Mesa " + mesa + " — " + (MESAS[mesa] || "Desconhecida");
+}
+
 let globalSock = null;
 const ctrlCanal = {};
 
@@ -166,9 +183,10 @@ async function deletarMsg(sock, channelId, msgId) {
   } catch (_) {}
 }
 
-async function fetchLatestGame() {
+async function fetchLatestGame(channelId) {
   try {
-    const res = await axios.get(API_URL, { timeout: 5000 });
+    const url = getMesaUrl(channelId);
+    const res = await axios.get(url, { timeout: 5000 });
     const latest = res.data?.data?.[0];
     if (!latest) return null;
     return { id: latest.id, result: latest.result };
@@ -262,7 +280,7 @@ async function tick(sock, channelId) {
   if (!e.ativo) return;
   checkDateReset(e);
 
-  const game = await fetchLatestGame();
+  const game = await fetchLatestGame(channelId);
   if (!game?.id || e.processedIds.has(game.id)) return;
 
   e.processedIds.add(game.id);
@@ -405,6 +423,55 @@ async function handleMessage(sock, m) {
 
   if (command === "menu") return reply(menuPrincipal());
 
+  if (command === "mesa") {
+    if (!isOwner(senderNum)) return reply("🔒 Apenas o *dono* pode trocar a mesa!");
+    const option = args[0];
+
+    if (!option) {
+      return reply(
+        "🎲 *CONFIGURAR MESA*
+
+" +
+        "Mesa atual: *" + getMesaNome(from) + "*
+
+" +
+        "Mesas disponíveis:
+" +
+        "› *.mesa 1* — Bac Bo Live
+" +
+        "› *.mesa 2* — Bac Bo Ao Vivo
+
+" +
+        "_A mesa é configurada por grupo_"
+      );
+    }
+
+    if (!MESAS[option]) {
+      return reply("❌ Mesa inválida!
+
+Use *.mesa 1* ou *.mesa 2*");
+    }
+
+    const eraAtivo = e.ativo;
+    if (eraAtivo) await desativarCanal(sock, from);
+
+    mesaGrupo[from] = option;
+
+    if (eraAtivo) {
+      ativarCanal(sock, from);
+      return reply("✅ *Mesa alterada e sinais reiniciados!*
+
+🎲 Agora a enviar sinais da:
+*" + getMesaNome(from) + "*");
+    }
+
+    return reply("✅ *Mesa configurada!*
+
+🎲 *" + getMesaNome(from) + "*
+
+Use *.bacbo on* para iniciar os sinais.");
+  }
+
   if (command === "bacbo") {
     const option = args[0]?.toLowerCase();
 
@@ -415,7 +482,8 @@ async function handleMessage(sock, m) {
         .join("\n› ") || "Nenhum";
       return reply(
         "🎲 *BAC BO — STATUS*\n\n" +
-        "Este grupo: " + (e.ativo ? "✅ Ativo" : "❌ Inativo") + "\n\n" +
+        "Este grupo: " + (e.ativo ? "✅ Ativo" : "❌ Inativo") + "\n" +
+        "🎰 Mesa: *" + getMesaNome(from) + "*\n\n" +
         "Grupos ativos:\n› " + canaisAtivos + "\n\n" +
         formatPlacar(from, e.stats)
       );
