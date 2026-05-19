@@ -429,27 +429,17 @@ async function handleMessage(sock, m) {
 
     if (!option) {
       return reply(
-        "🎲 *CONFIGURAR MESA*
-
-" +
-        "Mesa atual: *" + getMesaNome(from) + "*
-
-" +
-        "Mesas disponíveis:
-" +
-        "› *.mesa 1* — Bac Bo Live
-" +
-        "› *.mesa 2* — Bac Bo Ao Vivo
-
-" +
+        "🎲 *CONFIGURAR MESA*\n\n" +
+        "Mesa atual: *" + getMesaNome(from) + "*\n\n" +
+        "Mesas disponíveis:\n" +
+        "› *.mesa 1* — Bac Bo Live\n" +
+        "› *.mesa 2* — Bac Bo Ao Vivo\n\n" +
         "_A mesa é configurada por grupo_"
       );
     }
 
     if (!MESAS[option]) {
-      return reply("❌ Mesa inválida!
-
-Use *.mesa 1* ou *.mesa 2*");
+      return reply("❌ Mesa inválida!\n\nUse *.mesa 1* ou *.mesa 2*");
     }
 
     const eraAtivo = e.ativo;
@@ -459,18 +449,12 @@ Use *.mesa 1* ou *.mesa 2*");
 
     if (eraAtivo) {
       ativarCanal(sock, from);
-      return reply("✅ *Mesa alterada e sinais reiniciados!*
-
-🎲 Agora a enviar sinais da:
-*" + getMesaNome(from) + "*");
+      return reply("✅ *Mesa alterada e sinais reiniciados!*\n\n🎲 Agora a enviar sinais da:\n*" + getMesaNome(from) + "*");
     }
 
-    return reply("✅ *Mesa configurada!*
-
-🎲 *" + getMesaNome(from) + "*
-
-Use *.bacbo on* para iniciar os sinais.");
+    return reply("✅ *Mesa configurada!*\n\n🎲 *" + getMesaNome(from) + "*\n\nUse *.bacbo on* para iniciar os sinais.");
   }
+
 
   if (command === "bacbo") {
     const option = args[0]?.toLowerCase();
